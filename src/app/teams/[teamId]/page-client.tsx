@@ -410,49 +410,6 @@ export default function TeamPageClient({ teamId }: { teamId: string }) {
     return null;
   }
 
-  // Sample friends list component for right sidebar
-  const FriendsList = () => (
-    <div>
-      <h3 style={{ 
-        fontSize: "1.125rem", 
-        fontWeight: 600, 
-        color: theme === 'dark' ? "#e2e8f0" : "#1e293b",
-        marginTop: 0,
-        marginBottom: "var(--gap-medium)"
-      }}>
-        Online Friends
-      </h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-small)" }}>
-        {["Alex Johnson", "Sam Taylor", "Jordan Lee"].map((name, index) => (
-          <div key={index} style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--gap-small)",
-            padding: "var(--gap-small)",
-            borderRadius: "var(--radius)",
-            background: theme === 'dark' ? "rgba(30, 41, 59, 0.4)" : "rgba(241, 245, 249, 0.7)",
-          }}>
-            <div style={{
-              width: "2rem",
-              height: "2rem",
-              borderRadius: "50%",
-              background: "linear-gradient(to bottom right, #3b82f6, #8b5cf6)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontWeight: 600,
-              fontSize: "0.75rem"
-            }}>
-              {name.split(" ").map(part => part[0]).join("")}
-            </div>
-            <span style={{ fontSize: "0.875rem", color: theme === 'dark' ? "#e2e8f0" : "#1e293b" }}>{name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <PageLayout>
       {/* Page Header */}

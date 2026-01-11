@@ -1,7 +1,4 @@
-"use client";
-
 import React from 'react';
-import { useTheme } from './ThemeProvider';
 
 interface PageLayoutProps {
   children: React.ReactNode;
@@ -9,13 +6,11 @@ interface PageLayoutProps {
   fullWidth?: boolean;
 }
 
-export default function PageLayout({ 
-  children, 
+export default function PageLayout({
+  children,
   rightSidebar,
   fullWidth = false
 }: PageLayoutProps) {
-  const { theme } = useTheme();
-  
   return (
     <div style={{
       width: fullWidth ? '100%' : 'var(--content-width)',
@@ -32,17 +27,17 @@ export default function PageLayout({
       }}>
         {children}
       </div>
-      
+
       {/* Right sidebar (optional) */}
       {rightSidebar && (
         <div style={{
           width: 'var(--sidebar-width)',
-          background: theme === 'dark' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-          borderLeft: theme === 'dark' ? '1px solid rgba(51, 65, 85, 0.5)' : '1px solid rgba(203, 213, 225, 0.5)',
+          background: 'var(--card-bg)',
+          borderLeft: '1px solid var(--card-border)',
           padding: 'var(--card-padding)',
-          height: 'calc(100vh - 48px)', // Adjust based on navbar height
+          height: 'calc(100vh - 48px)',
           position: 'sticky',
-          top: '48px', // Adjust based on navbar height
+          top: '48px',
           overflowY: 'auto',
         }}>
           {rightSidebar}

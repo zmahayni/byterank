@@ -16,19 +16,22 @@ export type Database = {
     Tables: {
       daily_stats: {
         Row: {
-          commits: number
+          commit_count: number
+          created_at: string | null
           date: string
           lines_added: number
           user_id: string
         }
         Insert: {
-          commits?: number
+          commit_count?: number
+          created_at?: string | null
           date: string
           lines_added?: number
           user_id?: string
         }
         Update: {
-          commits?: number
+          commit_count?: number
+          created_at?: string | null
           date?: string
           lines_added?: number
           user_id?: string
@@ -120,37 +123,28 @@ export type Database = {
       }
       group_invitations: {
         Row: {
-          accepted_at: string | null
           created_at: string
-          created_by: string | null
-          expires_at: string | null
-          group_id: string | null
+          created_by: string
+          group_id: string
           id: string
-          invited_user: string | null
+          invited_user: string
           status: Database["public"]["Enums"]["group_invitation_status"] | null
-          token: string
         }
         Insert: {
-          accepted_at?: string | null
           created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          group_id?: string | null
+          created_by?: string
+          group_id?: string
           id?: string
-          invited_user?: string | null
+          invited_user?: string
           status?: Database["public"]["Enums"]["group_invitation_status"] | null
-          token?: string
         }
         Update: {
-          accepted_at?: string | null
           created_at?: string
-          created_by?: string | null
-          expires_at?: string | null
-          group_id?: string | null
+          created_by?: string
+          group_id?: string
           id?: string
-          invited_user?: string | null
+          invited_user?: string
           status?: Database["public"]["Enums"]["group_invitation_status"] | null
-          token?: string
         }
         Relationships: [
           {
@@ -179,51 +173,32 @@ export type Database = {
       group_join_requests: {
         Row: {
           created_at: string
-          decided_at: string | null
-          decided_by: string | null
-          group_id: string | null
+          group_id: string
           id: string
-          invite_code: string
-          message: string | null
-          requester_id: string | null
+          requester_id: string
           status:
             | Database["public"]["Enums"]["group_join_request_status"]
             | null
         }
         Insert: {
           created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          group_id?: string | null
+          group_id: string
           id?: string
-          invite_code: string
-          message?: string | null
-          requester_id?: string | null
+          requester_id: string
           status?:
             | Database["public"]["Enums"]["group_join_request_status"]
             | null
         }
         Update: {
           created_at?: string
-          decided_at?: string | null
-          decided_by?: string | null
-          group_id?: string | null
+          group_id?: string
           id?: string
-          invite_code?: string
-          message?: string | null
-          requester_id?: string | null
+          requester_id?: string
           status?:
             | Database["public"]["Enums"]["group_join_request_status"]
             | null
         }
         Relationships: [
-          {
-            foreignKeyName: "group_join_requests_decided_by_fkey"
-            columns: ["decided_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "group_join_requests_group_id_fkey"
             columns: ["group_id"]
@@ -287,6 +262,7 @@ export type Database = {
           description: string | null
           id: string
           invite_code: string
+          is_featured: boolean | null
           name: string
           owner_id: string
         }
@@ -297,6 +273,7 @@ export type Database = {
           description?: string | null
           id?: string
           invite_code?: string
+          is_featured?: boolean | null
           name: string
           owner_id?: string
         }
@@ -307,6 +284,7 @@ export type Database = {
           description?: string | null
           id?: string
           invite_code?: string
+          is_featured?: boolean | null
           name?: string
           owner_id?: string
         }
@@ -327,9 +305,11 @@ export type Database = {
           description: string | null
           github_id: number | null
           github_url: string | null
+          github_username: string | null
           id: string
           linkedin_url: string | null
           num_contributions: number | null
+          onboarding_completed: boolean | null
           username: string
         }
         Insert: {
@@ -338,9 +318,11 @@ export type Database = {
           description?: string | null
           github_id?: number | null
           github_url?: string | null
+          github_username?: string | null
           id?: string
           linkedin_url?: string | null
           num_contributions?: number | null
+          onboarding_completed?: boolean | null
           username: string
         }
         Update: {
@@ -349,92 +331,29 @@ export type Database = {
           description?: string | null
           github_id?: number | null
           github_url?: string | null
+          github_username?: string | null
           id?: string
           linkedin_url?: string | null
           num_contributions?: number | null
+          onboarding_completed?: boolean | null
           username?: string
         }
         Relationships: []
       }
     }
     Views: {
-      v_group_leaderboard_7d: {
-        Row: {
-          avatar_url: string | null
-          commits_7d: number | null
-          group_id: string | null
-          lines_added_7d: number | null
-          rank_commits: number | null
-          user_id: string | null
-          username: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_members_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "group_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_group_member_counts: {
-        Row: {
-          group_id: string | null
-          member_count: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "group_members_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_user_activity_7d: {
-        Row: {
-          commits_7d: number | null
-          lines_added_7d: number | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "daily_stats_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_user_activity_all_time: {
-        Row: {
-          commits_all: number | null
-          lines_added_all: number | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "daily_stats_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_user_team_commits: {
+        Args: { p_group_id: string; p_user_id: string }
+        Returns: number
+      }
+      update_all_team_commit_totals: { Args: never; Returns: undefined }
+      update_team_commit_totals: {
+        Args: { p_group_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       friend_request_status: "pending" | "accepted" | "declined"

@@ -20,6 +20,17 @@ type Team = {
   is_member?: boolean;
 };
 
+type PublicTeam = {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  description: string | null;
+  member_count: number;
+  is_featured: boolean;
+  is_member: boolean;
+  has_requested: boolean;
+};
+
 type SearchTeam = {
   type: 'team';
   id: string;
@@ -45,16 +56,21 @@ export default function CommunityPage() {
   const styles = useThemeStyles();
   const { user } = useAuth();
   const supabase = createClientComponentClient();
-  
+
   // State for teams data
   const [myTeams, setMyTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
+  // State for public/featured teams
+  const [publicTeams, setPublicTeams] = useState<PublicTeam[]>([]);
+  const [featuredTeam, setFeaturedTeam] = useState<PublicTeam | null>(null);
+  const [loadingPublicTeams, setLoadingPublicTeams] = useState(true);
+
   // State for search functionality
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  
+
   // Fetch user's teams
   useEffect(() => {
     async function fetchMyTeams() {
@@ -138,7 +154,95 @@ export default function CommunityPage() {
 
     fetchMyTeams();
   }, [user, supabase]);
-  
+
+  // Fetch public and featured teams
+  useEffect(() => {
+    async function fetchPublicTeams() {
+      try {
+        // Fetch all open teams
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('groups')
+          .select('id, name, avatar_url, description, access_policy, is_featured')
+          .eq('access_policy', 'open')
+          .order('is_featured', { ascending: false })
+          .order('name', { ascending: true });
+
+        if (teamsError) {
+          console.error('Error fetching public teams:', teamsError);
+          return;
+        }
+
+        if (!teamsData || teamsData.length === 0) {
+          setPublicTeams([]);
+          setFeaturedTeam(null);
+          setLoadingPublicTeams(false);
+          return;
+        }
+
+        const teamIds = teamsData.map(t => t.id);
+
+        // Batch fetch member counts, user memberships, and pending requests
+        const [memberCountsResult, userMembershipsResult, pendingRequestsResult] = await Promise.all([
+          supabase
+            .from('v_group_member_counts')
+            .select('group_id, member_count')
+            .in('group_id', teamIds),
+          user ? supabase
+            .from('group_members')
+            .select('group_id')
+            .in('group_id', teamIds)
+            .eq('user_id', user.id) : Promise.resolve({ data: [] }),
+          user ? supabase
+            .from('group_join_requests')
+            .select('group_id')
+            .in('group_id', teamIds)
+            .eq('requester_id', user.id)
+            .eq('status', 'pending') : Promise.resolve({ data: [] })
+        ]);
+
+        // Create lookup maps
+        const memberCountMap = new Map<string, number>();
+        (memberCountsResult.data || []).forEach((row: any) => {
+          memberCountMap.set(row.group_id, row.member_count || 0);
+        });
+
+        const userMembershipSet = new Set(
+          (userMembershipsResult.data || []).map((m: any) => m.group_id)
+        );
+
+        const pendingRequestSet = new Set(
+          (pendingRequestsResult.data || []).map((r: any) => r.group_id)
+        );
+
+        // Build public teams array
+        const teamsWithDetails: PublicTeam[] = teamsData.map(team => ({
+          id: team.id,
+          name: team.name,
+          avatar_url: team.avatar_url,
+          description: team.description,
+          member_count: memberCountMap.get(team.id) || 0,
+          is_featured: team.is_featured || false,
+          is_member: userMembershipSet.has(team.id),
+          has_requested: pendingRequestSet.has(team.id),
+        }));
+
+        // Separate featured team from regular public teams
+        // Also filter out teams the user is already a member of
+        const featured = teamsWithDetails.find(t => t.is_featured && !t.is_member);
+        const nonFeatured = teamsWithDetails.filter(t => !t.is_featured && !t.is_member);
+
+        setFeaturedTeam(featured || null);
+        setPublicTeams(nonFeatured);
+      } catch (error) {
+        console.error('Unexpected error fetching public teams:', error);
+      } finally {
+        setLoadingPublicTeams(false);
+      }
+    }
+
+    fetchPublicTeams();
+  }, [user, supabase]);
+
   // Handle unified search for both people and teams
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -299,11 +403,19 @@ export default function CommunityPage() {
       }
 
       // Update search results to show as member
-      setSearchResults(searchResults.map(result => 
-        result.type === 'team' && result.id === teamId 
+      setSearchResults(searchResults.map(result =>
+        result.type === 'team' && result.id === teamId
           ? { ...result, is_member: true }
           : result
       ));
+
+      // Remove team from public teams list since user is now a member
+      setPublicTeams(publicTeams.filter(team => team.id !== teamId));
+
+      // Clear featured team if it was joined
+      if (featuredTeam?.id === teamId) {
+        setFeaturedTeam(null);
+      }
 
       // Refresh teams list
       const { data: memberData } = await supabase
@@ -477,6 +589,252 @@ export default function CommunityPage() {
           flexDirection: "column",
           gap: "var(--gap-large)",
         }}>
+
+        {/* Featured Team Banner */}
+        {featuredTeam && (
+          <div style={{
+            background: isDark
+              ? "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)"
+              : "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)",
+            border: isDark ? "1px solid rgba(59, 130, 246, 0.3)" : "1px solid rgba(59, 130, 246, 0.2)",
+            borderRadius: "1rem",
+            padding: "1.5rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1.5rem",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              {featuredTeam.avatar_url ? (
+                <img
+                  src={featuredTeam.avatar_url}
+                  alt={featuredTeam.name}
+                  style={{
+                    width: "4rem",
+                    height: "4rem",
+                    borderRadius: "0.75rem",
+                    objectFit: "cover",
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: "4rem",
+                  height: "4rem",
+                  borderRadius: "0.75rem",
+                  background: "linear-gradient(to bottom right, #3b82f6, #8b5cf6)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  fontWeight: 700,
+                  fontSize: "1.25rem",
+                }}>
+                  {featuredTeam.name.substring(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginBottom: "0.25rem",
+                }}>
+                  <span style={{
+                    background: "linear-gradient(to right, #3b82f6, #8b5cf6)",
+                    color: "white",
+                    fontSize: "0.625rem",
+                    fontWeight: 700,
+                    padding: "0.125rem 0.5rem",
+                    borderRadius: "9999px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}>
+                    Featured
+                  </span>
+                </div>
+                <h3 style={{
+                  fontSize: "1.25rem",
+                  fontWeight: 700,
+                  color: colors.heading,
+                  marginBottom: "0.25rem",
+                }}>
+                  Join {featuredTeam.name}
+                </h3>
+                <p style={{
+                  fontSize: "0.875rem",
+                  color: colors.muted,
+                }}>
+                  {featuredTeam.description || `${featuredTeam.member_count} members competing`}
+                </p>
+              </div>
+            </div>
+            {featuredTeam.is_member ? (
+              <Link
+                href={`/teams/${featuredTeam.id}`}
+                style={{
+                  ...primaryButtonStyle,
+                  textDecoration: "none",
+                }}
+              >
+                View Team
+              </Link>
+            ) : (
+              <button
+                onClick={() => handleJoinTeam(featuredTeam.id)}
+                style={primaryButtonStyle}
+              >
+                Join Now
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Public Teams Grid */}
+        {(publicTeams.length > 0 || loadingPublicTeams) && (
+          <div>
+            <h2 style={{
+              fontSize: "1.25rem",
+              fontWeight: 600,
+              color: colors.heading,
+              marginBottom: "1rem",
+            }}>
+              Public Teams
+            </h2>
+            {loadingPublicTeams ? (
+              <div style={{
+                padding: "2rem",
+                textAlign: "center",
+                color: colors.muted,
+                background: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                borderRadius: "1rem",
+                border: isDark ? "1px solid rgba(51, 65, 85, 0.5)" : "1px solid rgba(203, 213, 225, 0.5)",
+              }}>
+                Loading teams...
+              </div>
+            ) : (
+              <div style={{
+                maxHeight: "500px",
+                overflowY: "auto",
+                paddingRight: "0.5rem",
+              }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: "1rem",
+                }}>
+                  {publicTeams.map((team) => (
+                  <div
+                    key={team.id}
+                    style={{
+                      background: isDark ? "rgba(15, 23, 42, 0.95)" : "rgba(255, 255, 255, 0.95)",
+                      borderRadius: "0.75rem",
+                      border: isDark ? "1px solid rgba(51, 65, 85, 0.5)" : "1px solid rgba(203, 213, 225, 0.5)",
+                      padding: "1.25rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "1rem",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      {team.avatar_url ? (
+                        <img
+                          src={team.avatar_url}
+                          alt={team.name}
+                          style={{
+                            width: "3rem",
+                            height: "3rem",
+                            borderRadius: "0.5rem",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: "3rem",
+                          height: "3rem",
+                          borderRadius: "0.5rem",
+                          background: "linear-gradient(to bottom right, #3b82f6, #8b5cf6)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "white",
+                          fontWeight: 600,
+                          fontSize: "1rem",
+                        }}>
+                          {team.name.substring(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{
+                          fontWeight: 600,
+                          color: colors.heading,
+                          fontSize: "1rem",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {team.name}
+                        </h4>
+                        <span style={{
+                          fontSize: "0.75rem",
+                          color: colors.muted,
+                        }}>
+                          {team.member_count} member{team.member_count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                    {team.description && (
+                      <p style={{
+                        fontSize: "0.8125rem",
+                        color: colors.muted,
+                        lineHeight: 1.4,
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                      }}>
+                        {team.description}
+                      </p>
+                    )}
+                    {team.is_member ? (
+                      <Link
+                        href={`/teams/${team.id}`}
+                        style={{
+                          ...buttonStyle,
+                          textAlign: "center",
+                          textDecoration: "none",
+                        }}
+                      >
+                        View Team
+                      </Link>
+                    ) : team.has_requested ? (
+                      <div style={{
+                        ...buttonStyle,
+                        textAlign: "center",
+                        background: isDark ? "rgba(59, 130, 246, 0.2)" : "rgba(59, 130, 246, 0.1)",
+                        color: "#3b82f6",
+                        cursor: "default",
+                      }}>
+                        Request Sent
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleJoinTeam(team.id)}
+                        style={{
+                          ...primaryButtonStyle,
+                          justifyContent: "center",
+                        }}
+                      >
+                        Join Team
+                      </button>
+                    )}
+                  </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Search Section */}
         <Card title="Find Teams & People">
           <div style={{

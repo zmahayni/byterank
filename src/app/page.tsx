@@ -33,28 +33,6 @@ export default function Home() {
         overflow: 'hidden',
         marginTop: '-48px' // Offset for navbar height
       }}>
-        {/* Gradient orbs in background */}
-        <div style={{ 
-          position: 'absolute',
-          top: '25%',
-          left: '-12rem',
-          width: '20rem',
-          height: '20rem',
-          borderRadius: '9999px',
-          background: 'rgba(59, 130, 246, 0.15)',
-          filter: 'blur(80px)'
-        }} />
-        <div style={{ 
-          position: 'absolute',
-          bottom: '25%',
-          right: '-12rem',
-          width: '20rem',
-          height: '20rem',
-          borderRadius: '9999px',
-          background: 'rgba(168, 85, 247, 0.15)',
-          filter: 'blur(80px)'
-        }} />
-        
         {/* Main content - centered vertically and horizontally */}
         <div style={{ 
           display: 'flex', 

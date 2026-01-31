@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
@@ -15,38 +15,45 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Singleton supabase client - created once at module level
+let supabaseClient: ReturnType<typeof createClientComponentClient> | null = null;
+function getSupabaseClient() {
+  if (!supabaseClient) {
+    supabaseClient = createClientComponentClient();
+  }
+  return supabaseClient;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = getSupabaseClient();
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    // Check active session
-    const getSession = async () => {
-      setIsLoading(true);
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Error getting session:', error);
-      }
+    // Prevent double initialization in StrictMode
+    if (initializedRef.current) return;
+    initializedRef.current = true;
 
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    };
-
-    getSession();
-
-    // Listen for auth changes
+    // Listen for auth changes - this will fire immediately with current session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
         setIsLoading(false);
       }
     );
+
+    // Get initial session (onAuthStateChange may not fire immediately for existing sessions)
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (initialSession) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+      }
+      setIsLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -57,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Use NEXT_PUBLIC_SITE_URL for redirect or fallback to window.location.origin
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const redirectTo = `${siteUrl}/teams`;
+      const redirectTo = `${siteUrl}/welcome`;
       console.log('Redirect URL:', redirectTo);
       
       const { error } = await supabase.auth.signInWithOAuth({

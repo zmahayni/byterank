@@ -80,15 +80,14 @@
 }
 
 body {
-  background: linear-gradient(to bottom right, hsl(220, 20%, 97%), hsl(220, 20%, 94%));
-  background-attachment: fixed;
+  background: hsl(220, 20%, 97%);
   color: hsl(var(--foreground));
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
 }
 
 body.dark {
-  background: linear-gradient(to bottom right, hsl(220, 40%, 10%), hsl(240, 40%, 8%));
+  background: hsl(220, 40%, 10%);
 }
 
 @layer base {
